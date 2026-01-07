@@ -2,8 +2,6 @@
 
 A full-featured e-commerce REST API built with Node.js, Express, PostgreSQL, featuring JWT authentication, role-based access control, transactional order processing, and a clean, scalable backend architecture.
 
-This project was built to deeply understand real-world backend concepts such as authentication, database relationships, foreign keys, transactions, and service-based architecture.
-
 🚀 Features
 🔐 Authentication & Authorization
 
