@@ -1,0 +1,505 @@
+openapi: 3.0.3
+info:
+  title: Noah's Ark Shop API
+  description: API documentation for Noah's Ark Shop e-commerce platform
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+  - url: https://api.noahsarkshop.com/api
+    description: Production server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        email_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: float
+        stock:
+          type: integer
+        image_url:
+          type: string
+        is_active:
+          type: boolean
+        brand:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      properties:
+        productId:
+          type: integer
+        quantity:
+          type: integer
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        total_price:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [pending, paid, shipped, delivered, cancelled]
+        created_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+
+paths:
+
+  # ============================
+  # AUTH ENDPOINTS
+  # ============================
+  /auth/register:
+    post:
+      summary: Register a new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        201:
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+                  otp:
+                    type: string
+        400:
+          description: Validation or duplicate user error
+
+  /auth/login:
+    post:
+      summary: Login a user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        401:
+          description: Invalid credentials
+
+  /auth/verify-email:
+    post:
+      summary: Verify email with OTP
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp]
+              properties:
+                email:
+                  type: string
+                  format: email
+                otp:
+                  type: string
+      responses:
+        200:
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/forgot-password:
+    post:
+      summary: Request password reset OTP
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        200:
+          description: OTP sent if user exists
+
+  /auth/reset-password:
+    post:
+      summary: Reset password with OTP
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp, newPassword]
+              properties:
+                email:
+                  type: string
+                  format: email
+                otp:
+                  type: string
+                newPassword:
+                  type: string
+      responses:
+        200:
+          description: Password reset successfully
+
+  /auth/otp/resend:
+    post:
+      summary: Resend OTP
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, type]
+              properties:
+                email:
+                  type: string
+                  format: email
+                type:
+                  type: string
+                  enum: [verify_email, reset_password]
+      responses:
+        200:
+          description: OTP sent successfully
+
+  /auth/logout:
+    post:
+      summary: Logout user and revoke session
+      tags: [Auth]
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Logout successful
+
+  # ============================
+  # PRODUCTS
+  # ============================
+  /products:
+    get:
+      summary: Get all products
+      tags: [Products]
+      responses:
+        200:
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      summary: Create a new product (admin only)
+      tags: [Products]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        201:
+          description: Product created successfully
+
+  /products/{id}:
+    get:
+      summary: Get a single product by ID
+      tags: [Products]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+    put:
+      summary: Update a product (admin only)
+      tags: [Products]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        200:
+          description: Product updated
+    delete:
+      summary: Soft delete a product (admin only)
+      tags: [Products]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        204:
+          description: Product deleted successfully
+
+  # ============================
+  # ORDERS
+  # ============================
+  /orders:
+    post:
+      summary: Create an order (user)
+      tags: [Orders]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/OrderItem'
+                shippingAddress:
+                  type: object
+                  properties:
+                    city:
+                      type: string
+                    shipping_address1:
+                      type: string
+                    shipping_address2:
+                      type: string
+                    country:
+                      type: string
+                    zip:
+                      type: integer
+      responses:
+        201:
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /orders/{id}:
+    get:
+      summary: Get a single order by ID (user/admin)
+      tags: [Orders]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+    put:
+      summary: Update order status (admin only)
+      tags: [Orders]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [pending, paid, shipped, delivered, cancelled]
+      responses:
+        200:
+          description: Order status updated
+
+  /orders/{id}/cancel:
+    put:
+      summary: Cancel an order (user only)
+      tags: [Orders]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Order cancelled successfully
+
+  /orders/admin:
+    get:
+      summary: Get all orders with pagination (admin)
+      tags: [Orders]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+          required: false
+        - name: limit
+          in: query
+          schema:
+            type: integer
+          required: false
+      responses:
+        200:
+          description: List of orders
+
+  # ============================
+  # ADMIN
+  # ============================
+  /admin/users/{userId}/promote:
+    patch:
+      summary: Promote a user to admin
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: User promoted
+
+  /admin/users/{userId}/demote:
+    patch:
+      summary: Demote an admin to user
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: User demoted
